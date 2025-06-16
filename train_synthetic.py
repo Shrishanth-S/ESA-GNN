@@ -33,7 +33,7 @@ def train_synthetic():
 
     print("Training on synthetic data...")
 
-    for epoch in range(500):
+    for epoch in range(200):
         total_loss = 0
         obs, fut = generate_synthetic_trajectories(num_agents=5, obs_len=obs_len, pred_len=pred_len)
         target = fut[0]              # [N, 2]
