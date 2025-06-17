@@ -55,6 +55,20 @@ def train():
 
         print(f"Epoch {epoch:3d} | Total Loss: {total_loss:.2f} | "
               f"Pred Loss: {total_pred_loss:.2f} | Reg Loss: {total_reg_loss:.2f}")
+        
+        
+    model_info = {
+    "total_loss": total_loss,
+    "epoch": epoch,
+    "encoder_state_dict": encoder.state_dict(),
+    "gat_state_dict": gat.state_dict(),
+    "decoder_state_dict": decoder.state_dict(),
+}
+
+        
+    # Save model + loss
+    torch.save(model_info, f"saved_models/final_model_with_loss.pt")
+    print(f"✅ Final model saved with total loss: {total_loss:.4f}")
 
     predict_and_visualize(gat, encoder, decoder, dataset, sample_index=0)
     visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=0)

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import torch
 from uncertainty_utils import predict_with_uncertainty
 
-def visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=0, T=100):
+def visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=0, T=10):
     # Set models to eval mode
     gat.eval()
     encoder.eval()
@@ -43,10 +43,10 @@ def visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=0, T=100)
 
         # 🔁 Multiple sampled predictions
         for t in range(T):
-            plt.plot(preds_np[t, i,:,0], preds_np[t, i,:,1], 'r-', alpha=0.35, linewidth=1, label='Sampled Prediction' if (i==0 and t==0) else "")
+            plt.plot(preds_np[t, i,:,0], preds_np[t, i,:,1], 'r-', alpha=0.35, linewidth=2, label='Sampled Prediction' if (i==0 and t==0) else "")
 
         # 🔴 Mean trajectory
-        plt.plot(mean_np[i,:,0], mean_np[i,:,1], 'rx--', label='Predicted Mean' if i==0 else "")
+        plt.plot(mean_np[i,:,0], mean_np[i,:,1], 'y.-', label='Predicted Mean' if i==0 else "")
 
     plt.title("Trajectory Prediction with Uncertainty")
     plt.xlabel("X")
