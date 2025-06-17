@@ -7,31 +7,25 @@ from utils import social_force_loss
 from dataset import PedestrianDataset
 from torch.utils.data import Subset
 from visualize_prediction import predict_and_visualize
+from visualize_uncertainty import visualize_uncertainty
 
 def train():
-    full_dataset = PedestrianDataset("data/annotations/univ/world_coordinate_inter.csv")
-    dataset = Subset(full_dataset, range(200))
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-    print("Loaded dataset with", len(dataset), "samples")
+    dataset = Subset(PedestrianDataset("data/annotations/zara01/world_coordinate_inter.csv"), range(200))
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
     encoder = EncoderLSTM()
     gat = GAT(in_channels=34)
     decoder = DecoderLSTM(pred_len=12)
 
     optimizer = optim.Adam(
-        list(encoder.parameters()) + 
-        list(gat.parameters()) + 
-        list(decoder.parameters()), 
+        list(encoder.parameters()) + list(gat.parameters()) + list(decoder.parameters()),
         lr=0.01
     )
-
     loss_fn = nn.MSELoss()
 
-    for epoch in range(1, 101):
-        total_loss = 0.0
-        total_pred_loss = 0.0
-        total_reg_loss = 0.0
+    for epoch in range(1, 201):
+        total_loss = total_pred_loss = total_reg_loss = 0.0
 
         for batch in dataloader:
             obs = batch.obs_seq              # [N, obs_len, 2]
@@ -41,12 +35,11 @@ def train():
             encoded = encoder(obs)           # [N, 32]
             node_input = torch.cat([last_pos, encoded], dim=1)  # [N, 34]
             context = gat(node_input, batch.edge_index)         # [N, 64]
-            pred = decoder(context, last_pos)                   # [N, 12, 2]
+
+            pred = decoder(context, last_pos)  # [N, 12, 2]
 
             pred_loss = loss_fn(pred, target)
             reg_loss = social_force_loss(pred.view(pred.size(0), -1))
-
-            # Ensure reg_loss is a tensor
             if not isinstance(reg_loss, torch.Tensor):
                 reg_loss = torch.tensor(reg_loss, dtype=pred.dtype, device=pred.device)
 
@@ -64,3 +57,4 @@ def train():
               f"Pred Loss: {total_pred_loss:.2f} | Reg Loss: {total_reg_loss:.2f}")
 
     predict_and_visualize(gat, encoder, decoder, dataset, sample_index=0)
+    visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=0)
