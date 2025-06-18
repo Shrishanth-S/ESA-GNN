@@ -44,5 +44,4 @@ def predict_and_visualize(gat, encoder, decoder, dataset, sample_index=0):
         plt.legend()
         plt.grid(True)
         plt.show()
-        plt.savefig(f"plot_prediction.png")  
         plt.close()

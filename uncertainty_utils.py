@@ -5,9 +5,13 @@ def predict_with_uncertainty(model, encoder, decoder, data, T=30):
     encoder.train()
     decoder.train()
 
-    obs = data.obs_seq          # [N, obs_len, 2]
-    last_pos = obs[:, -1, :]    # [N, 2]
-    edge_index = data.edge_index
+    # 🔍 Automatically detect the model device (assumes all models on same device)
+    device = next(model.parameters()).device
+
+    # 📦 Move input data to that device
+    obs = data.obs_seq.to(device)          # [N, obs_len, 2]
+    last_pos = obs[:, -1, :].to(device)    # [N, 2]
+    edge_index = data.edge_index.to(device)
 
     preds = []
     for _ in range(T):

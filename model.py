@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch_geometric.nn import GATConv
 
 class GAT(nn.Module):
-    def __init__(self, in_channels=34, hidden_channels=64, dropout=0.1):
+    def __init__(self, in_channels=34, hidden_channels=64, dropout=0.5):
         super().__init__()
         self.gat1 = GATConv(in_channels, hidden_channels, heads=2, concat=True, dropout=dropout)
         self.gat2 = GATConv(hidden_channels * 2, hidden_channels, heads=1, concat=False, dropout=dropout)

@@ -24,4 +24,4 @@ print(f"✅ Loaded model from epoch {checkpoint.get('epoch', '?')} with total lo
 dataset = Subset(PedestrianDataset("data/annotations/zara01/world_coordinate_inter.csv"), range(200))
 
 # Visualize prediction + uncertainty
-visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=45, T=100)
+visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=150, T=100)
