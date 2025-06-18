@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import os
 from torch_geometric.loader import DataLoader
 from model import GAT, EncoderLSTM, DecoderLSTM
 from utils import social_force_loss
@@ -12,6 +13,8 @@ from visualize_uncertainty import visualize_uncertainty
 def train():
 
     dataset = Subset(PedestrianDataset("data/annotations/zara01/world_coordinate_inter.csv"), range(200))
+    video_folder = os.path.basename(os.path.dirname(dataset.dataset.path))
+
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
     encoder = EncoderLSTM()
@@ -66,9 +69,9 @@ def train():
 }
 
         
-    # Save model + loss
-    torch.save(model_info, f"saved_models/final_model_with_loss.pt")
-    print(f"✅ Final model saved with total loss: {total_loss:.4f}")
+    save_path = f"saved_models/model_{video_folder}_loss{total_loss:.4f}.pt"
+    torch.save(model_info, save_path)
+    print(f"✅ Saved model to {save_path}")
 
     predict_and_visualize(gat, encoder, decoder, dataset, sample_index=0)
     visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=0)

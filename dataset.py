@@ -14,7 +14,8 @@ class PedestrianDataset(Dataset):
         self.pred_len = pred_len
         self.min_agents = min_agents
         self.hidden_size = hidden_size
-        self.cache_file = f"{os.path.splitext(os.path.basename(path))[0]}_obs{obs_len}_pred{pred_len}_cache.pt"
+        folder_name = os.path.basename(os.path.dirname(path))
+        self.cache_file = f"{folder_name}_obs{obs_len}_pred{pred_len}_cache.pt"
 
         self.lstm_encoder = EncoderLSTM(input_size=2, hidden_size=hidden_size)
 
