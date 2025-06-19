@@ -2,7 +2,7 @@ import cv2
 import pandas as pd
 
 # Load the pixel coordinate CSV
-df = pd.read_csv("data/annotations/univ/pixel_coordinate_inter.csv", header=None)
+df = pd.read_csv("data/annotations/zara02/pixel_coordinate_inter.csv", header=None)
 df = df.transpose()
 df.columns = ['frame', 'ped_id', 'u', 'v']
 
@@ -11,7 +11,7 @@ df['u'] = df['u'].astype(int)
 df['v'] = df['v'].astype(int)
 
 # Load the video
-video_path = "data/videos/students003.avi"
+video_path = "data/videos/crowds_zara02.avi"
 cap = cv2.VideoCapture(video_path)
 
 # Prepare frame dictionary (key = frame index starting from 1)

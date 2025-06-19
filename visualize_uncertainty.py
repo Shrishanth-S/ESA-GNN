@@ -4,7 +4,7 @@ from uncertainty_utils import predict_with_uncertainty
 
 def visualize_uncertainty(
     gat, encoder, decoder, dataset,
-    sample_index=0, T=30, save=False, alpha=4
+    sample_index, T, save=False, alpha=5
 ):
     """
     Visualizes uncertainty-aware trajectory prediction using GPU if available.

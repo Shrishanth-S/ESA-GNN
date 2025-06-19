@@ -1,11 +1,12 @@
 import torch
 from model import GAT, EncoderLSTM, DecoderLSTM
 from dataset import PedestrianDataset
+from visualize_prediction import predict_and_visualize
 from visualize_uncertainty import visualize_uncertainty
 from torch.utils.data import Subset
 
 # Load checkpoint (assuming it contains state_dicts and metadata)
-checkpoint = torch.load("saved_models/final_model_with_loss.pt")
+checkpoint = torch.load("saved_models/model_seq_hotel_loss0.1526_UsingMap.pt")
 
 # Re-create model architectures
 encoder = EncoderLSTM()
@@ -21,7 +22,9 @@ print(f"✅ Loaded model from epoch {checkpoint.get('epoch', '?')} with total lo
 
 
 # Load dataset again (same way you did during training)
-dataset = Subset(PedestrianDataset("data/annotations/zara01/world_coordinate_inter.csv"), range(200))
+dataset = Subset(PedestrianDataset("data/annotations/seq_hotel/world_coordinate_inter.csv"), range(200))
+
+predict_and_visualize(gat, encoder, decoder, dataset, sample_index=34);
 
 # Visualize prediction + uncertainty
-visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=60, T=100)
+visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=50, T=100)
