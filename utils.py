@@ -88,3 +88,16 @@ def map_penalty_loss(predicted_positions, map_image, homography_matrix, penalty_
 
     return torch.tensor(penalty, dtype=torch.float32, device=device) / predicted_positions.size(0)
 
+def compute_ade_fde(pred, target):
+    """
+    Compute Average Displacement Error and Final Displacement Error.
+    Args:
+        pred: [N, T, 2]
+        target: [N, T, 2]
+    Returns:
+        (ade, fde)
+    """
+    ade = torch.norm(pred - target, dim=2).mean().item()
+    fde = torch.norm(pred[:, -1, :] - target[:, -1, :], dim=1).mean().item()
+    return ade, fde
+
