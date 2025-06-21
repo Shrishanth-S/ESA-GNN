@@ -19,13 +19,13 @@ from visualize_uncertainty import visualize_uncertainty
 def train():
     # === Load Full Dataset ===
     dataset_path = "data/annotations/seq_hotel/world_coordinate_inter.csv"
-    dataset = Subset(PedestrianDataset(dataset_path), range(1000))
-    video_folder = os.path.basename(os.path.dirname(dataset.dataset.path))
+    full_dataset = PedestrianDataset(dataset_path)
+    video_folder = os.path.basename(os.path.dirname(full_dataset.path))
 
     # === Split Train/Test (80/20) ===
-    train_size = int(0.8 * len(dataset))
-    test_size = len(dataset) - train_size
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    train_size = int(0.8 * len(full_dataset))
+    test_size = len(full_dataset) - train_size
+    train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
     print(f"📊 Dataset split: {train_size} train, {test_size} test")
 
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
@@ -48,12 +48,10 @@ def train():
         list(encoder.parameters()) + list(gat.parameters()) + list(decoder.parameters()),
         lr=0.001
     )
+    
     loss_fn = nn.MSELoss()
 
-    best_ade = float('inf')
-    best_fde = float('inf')
-
-    for epoch in range(1, 201):
+    for epoch in range(1, 101):
         encoder.train()
         gat.train()
         decoder.train()
