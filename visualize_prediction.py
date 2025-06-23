@@ -2,10 +2,11 @@ import torch
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
+import time
 from utils import build_graph, world_to_pixel
 from pathlib import Path
 
-def predict_and_visualize(gat, encoder, decoder, dataset, sample_index=0):
+def predict_and_visualize(gat, encoder, decoder, dataset, sample_index):
     device = next(gat.parameters()).device  # Automatically get model's device
     gat.eval()
     encoder.eval()
@@ -18,13 +19,19 @@ def predict_and_visualize(gat, encoder, decoder, dataset, sample_index=0):
         obs = data.obs_seq.to(device)       # [N, obs_len, 2]
         true_fut = data.y.to(device)        # [N, 12, 2]
         last_pos = obs[:, -1, :]            # [N, 2]
+        edge_index = data.edge_index.to(device)
 
-        # === Model Forward ===
+        # === Measure inference time ===
+        start_time = time.time()
+
         encoded = encoder(obs)
         node_input = torch.cat([last_pos, encoded], dim=1)
-        edge_index = data.edge_index.to(device)
         context = gat(node_input, edge_index)
         pred = decoder(context, last_pos)  # [N, 12, 2]
+
+        end_time = time.time()
+        elapsed_ms = (end_time - start_time) * 1000
+        print(f"\n⏱️ Inference Time: {elapsed_ms:.2f} ms")
 
         # === Move back to CPU for visualization
         obs_np = obs.cpu().numpy()

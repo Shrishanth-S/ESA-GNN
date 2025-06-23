@@ -24,7 +24,7 @@ print(f"✅ Loaded model")
 # Load dataset again (same way you did during training)
 dataset = PedestrianDataset("data/annotations/seq_hotel/world_coordinate_inter.csv")
 
-predict_and_visualize(gat, encoder, decoder, dataset, sample_index=6500)
+predict_and_visualize(gat, encoder, decoder, dataset, sample_index=600)
 
 # Visualize prediction + uncertainty
-visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=6500, T=100)
+visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=600, T=100)
