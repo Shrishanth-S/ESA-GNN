@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import torch
 from uncertainty_utils import predict_with_uncertainty
+from uncertainty_calibration_metrics import (
+    compute_ece, compute_mce, compute_brier_score, plot_reliability_diagram
+)
 
 def visualize_uncertainty(
     gat, encoder, decoder, dataset,
@@ -89,3 +92,16 @@ def visualize_uncertainty(
 
     plt.show()
     plt.close()
+    
+    # Print numerical metrics
+    ece = compute_ece(pred_mean, true_fut, pred_std)
+    mce = compute_mce(pred_mean, true_fut, pred_std)
+    brier = compute_brier_score(pred_mean, true_fut, pred_std)
+
+    print(f"\n📏 Calibration Metrics:")
+    print(f"  ECE  = {ece:.4f}")
+    print(f"  MCE  = {mce:.4f}")
+    print(f"  Brier Score = {brier:.4f}")
+
+    # Plot diagram
+    plot_reliability_diagram(pred_mean, true_fut, pred_std)
