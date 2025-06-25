@@ -1,12 +1,20 @@
 import torch
+import cv2
 from model import GAT, EncoderLSTM, DecoderLSTM
 from dataset import PedestrianDataset
 from visualize_prediction import predict_and_visualize
 from visualize_uncertainty import visualize_uncertainty
 from torch.utils.data import Subset
+from attention_visualizer import visualize_attention_on_video
 
 # Load checkpoint (assuming it contains state_dicts and metadata)
-checkpoint = torch.load("saved_models/model_seq_eth_epoch75_ade0.2213_fde0.3860.pt")
+checkpoint = torch.load("saved_models/model_seq_hotel_epoch100_ade0.1073_fde0.1816.pt")
+
+map_path = "data/annotations/seq_hotel/map.png"
+map_image = cv2.imread(map_path, cv2.IMREAD_GRAYSCALE)
+
+# map_shape is just the image shape
+map_shape = map_image.shape
 
 # Re-create model architectures
 encoder = EncoderLSTM()
@@ -22,9 +30,21 @@ print(f"✅ Loaded model")
 
 
 # Load dataset again (same way you did during training)
-dataset = PedestrianDataset("data/annotations/seq_eth/world_coordinate_inter.csv")
+dataset = PedestrianDataset("data/annotations/seq_hotel/world_coordinate_inter.csv")
 
-predict_and_visualize(gat, encoder, decoder, dataset, sample_index=679)
+predict_and_visualize(gat, encoder, decoder, dataset, sample_index=459)
 
 # Visualize prediction + uncertainty
-visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=679, T=100)
+visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=459, T=100)
+
+
+visualize_attention_on_video(
+    gat=gat,
+    encoder=encoder,
+    dataset=dataset,
+    sample_index=459,  # 🔁 Change to your desired pedestrian sample
+    video_path="data/videos/seq_hotel.avi",
+    homography_path="data/annotations/seq_hotel/H.txt",
+    map_shape=map_shape
+)
+

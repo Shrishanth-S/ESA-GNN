@@ -78,7 +78,8 @@ class PedestrianDataset(Dataset):
 
             # Create PyG Data object
             data = Data(x=node_features, edge_index=edge_index, y=target)
-            data.obs_seq = obs_trajs  # Save input for visualization
+            data.obs_seq = obs_trajs 
+            data.frame_id = obs_frames[-1]
             samples.append(data)
 
         return samples

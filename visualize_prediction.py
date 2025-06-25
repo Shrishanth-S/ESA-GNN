@@ -39,8 +39,8 @@ def predict_and_visualize(gat, encoder, decoder, dataset, sample_index):
         pred_np = pred.cpu().numpy()
 
         # === Load map + homography ===
-        H = np.linalg.inv(np.loadtxt("data/annotations/seq_eth/H.txt"))
-        map_img = cv2.imread("data/annotations/seq_eth/map.png", cv2.IMREAD_GRAYSCALE)
+        H = np.linalg.inv(np.loadtxt("data/annotations/seq_hotel/H.txt"))
+        map_img = cv2.imread("data/annotations/seq_hotel/map.png", cv2.IMREAD_GRAYSCALE)
 
         def to_pixel(trajs):
             N, T, _ = trajs.shape
@@ -54,9 +54,9 @@ def predict_and_visualize(gat, encoder, decoder, dataset, sample_index):
             pixels = world_to_pixel_univ_zara(flat, H, map_img.shape)  # [N*T, 2]
             return pixels.reshape(N, T, 2)
 
-        obs_pix = to_pixel_univ_zara(obs_np)
-        true_pix = to_pixel_univ_zara(true_np)
-        pred_pix = to_pixel_univ_zara(pred_np)
+        obs_pix = to_pixel(obs_np)
+        true_pix = to_pixel(true_np)
+        pred_pix = to_pixel(pred_np)
 
         # === Print comparison ===
         print("\n📊 Future Trajectory Comparison (Predicted vs Ground Truth):")

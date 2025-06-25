@@ -7,12 +7,16 @@ class GAT(nn.Module):
         super().__init__()
         self.gat1 = GATConv(in_channels, hidden_channels, heads=2, concat=True, dropout=dropout)
         self.gat2 = GATConv(hidden_channels * 2, hidden_channels, heads=1, concat=False, dropout=dropout)
+        self.attn_weights = None  # Will store attention weights
 
     def forward(self, x, edge_index):
-        x = self.gat1(x, edge_index)
+        # GATConv can return attention weights when return_attention_weights=True
+        x, (edge_index, attn_weights) = self.gat1(x, edge_index, return_attention_weights=True)
+        self.attn_weights = attn_weights  # Save attention weights for visualization
+
         x = torch.relu(x)
         x = self.gat2(x, edge_index)
-        return x  # [N, hidden]
+        return x
 
 class EncoderLSTM(nn.Module):
     def __init__(self, input_size=2, hidden_size=32):
