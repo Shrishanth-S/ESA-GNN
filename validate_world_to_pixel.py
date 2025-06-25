@@ -4,15 +4,15 @@ import matplotlib.pyplot as plt
 import cv2
 
 # === Load Homography Matrix ===
-H = np.linalg.inv(np.loadtxt("data/annotations/seq_eth/H.txt"))
+H = np.linalg.inv(np.loadtxt("data/annotations/univ/H.txt"))
 
 
 # === Load World and Pixel Coordinates ===
-world_df = pd.read_csv("data/annotations/seq_eth/world_coordinate_inter.csv", header=None).T
+world_df = pd.read_csv("data/annotations/univ/world_coordinate_inter.csv", header=None).T
 world_df.columns = ['frame', 'ped_id', 'y', 'x']
 world_df = world_df.sort_values(['frame', 'ped_id'])
 
-pixel_df = pd.read_csv("data/annotations/seq_eth/pixel_coordinate_inter.csv", header=None).T
+pixel_df = pd.read_csv("data/annotations/univ/pixel_coordinate_inter.csv", header=None).T
 pixel_df.columns = ['frame', 'ped_id', 'y', 'x']
 pixel_df = pixel_df.sort_values(['frame', 'ped_id'])
 
@@ -32,7 +32,7 @@ actual_pixel_pts = sample[['x_pixel', 'y_pixel']].values
 transformed_pts = world_to_pixel(world_pts, H)
 
 # === Load Map ===
-map_img = cv2.imread("data/annotations/seq_eth/map.png", cv2.IMREAD_GRAYSCALE)
+map_img = cv2.imread("data/annotations/univ/map.png", cv2.IMREAD_GRAYSCALE)
 
 # === Plot ===
 plt.figure(figsize=(8, 6))
@@ -42,7 +42,7 @@ x_t, y_t = transformed_pts[:, 0], transformed_pts[:, 1]
 
 
 # 🔴 Transformed from world → pixel
-plt.scatter(y_t, x_t, c='red', label='Transformed (H × World)', s=12)
+plt.scatter(x_t, y_t, c='red', label='Transformed (H × World)', s=12)
 
 # 🔵 Actual annotated pixel points
 plt.scatter(actual_pixel_pts[:, 0], actual_pixel_pts[:, 1], c='blue', label='Actual Pixel', s=12, alpha=0.6)

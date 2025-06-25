@@ -52,6 +52,23 @@ def world_to_pixel(world_coords, H, map_shape):
 
     return np.round(np.stack([pixel_x, pixel_y], axis=1)).astype(int)  # [N, 2]
 
+def world_to_pixel_univ_zara(world_coords, H, map_shape):
+    """
+    Convert [N, 2] world coords to pixel coords using homography H.
+    Returns integer pixel coordinates: [N, 2]
+    """
+    N = world_coords.shape[0]
+    world_homo = np.hstack([world_coords, np.ones((N, 1))])  # [N, 3]
+    pixel_coords = (H @ world_homo.T).T  # [N, 3]
+    pixel_coords = pixel_coords[:, :2] / pixel_coords[:, 2:]  # [N, 2]
+
+    # Swap x and y axes and vertically flip
+    x_t, y_t = pixel_coords[:, 0], pixel_coords[:, 1]
+    pixel_x = x_t
+    pixel_y = y_t
+
+    return np.round(np.stack([pixel_x, pixel_y], axis=1)).astype(int)  # [N, 2]
+
 def map_penalty_loss(predicted_positions, map_image, homography_matrix, penalty_value=5.0, dilation_radius=3):
     """
     Penalize predicted positions that fall near or inside non-walkable regions (white pixels).
@@ -88,6 +105,29 @@ def map_penalty_loss(predicted_positions, map_image, homography_matrix, penalty_
 
     return torch.tensor(penalty, dtype=torch.float32, device=device) / predicted_positions.size(0)
 
+def map_penalty_loss_univ_zara(predicted_positions, map_image, homography_matrix, penalty_value=5.0, dilation_radius=3):
+    device = predicted_positions.device
+
+    # Convert predicted world positions to pixel coordinates
+    pred_np = predicted_positions.detach().cpu().numpy()  # [N, 2]
+    pixel_coords = world_to_pixel_univ_zara(pred_np, homography_matrix, map_image.shape)  # [N, 2]
+
+    # Clamp pixel coordinates to stay inside image
+    pixel_coords[:, 0] = np.clip(pixel_coords[:, 0], 0, map_image.shape[1] - 1)
+    pixel_coords[:, 1] = np.clip(pixel_coords[:, 1], 0, map_image.shape[0] - 1)
+
+    # 1️⃣ Dilate white regions to create a "buffer zone"
+    kernel = np.ones((2 * dilation_radius + 1, 2 * dilation_radius + 1), np.uint8)
+    dilated_map = cv2.dilate((map_image > 127).astype(np.uint8), kernel)
+
+    # 2️⃣ Check if any predicted point lies in the danger zone
+    penalty = 0.0
+    for x, y in pixel_coords:
+        if dilated_map[y, x]:  # 1 if inside white zone or close to it
+            penalty += penalty_value
+
+    return torch.tensor(penalty, dtype=torch.float32, device=device) / predicted_positions.size(0)
+
 def compute_ade_fde(pred, target):
     """
     Compute Average Displacement Error and Final Displacement Error.
@@ -100,4 +140,7 @@ def compute_ade_fde(pred, target):
     ade = torch.norm(pred - target, dim=2).mean().item()
     fde = torch.norm(pred[:, -1, :] - target[:, -1, :], dim=1).mean().item()
     return ade, fde
+
+
+
 

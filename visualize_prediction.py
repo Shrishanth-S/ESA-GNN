@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import time
-from utils import build_graph, world_to_pixel
+from utils import build_graph, world_to_pixel,world_to_pixel_univ_zara
 from pathlib import Path
 
 def predict_and_visualize(gat, encoder, decoder, dataset, sample_index):
@@ -39,18 +39,24 @@ def predict_and_visualize(gat, encoder, decoder, dataset, sample_index):
         pred_np = pred.cpu().numpy()
 
         # === Load map + homography ===
-        H = np.linalg.inv(np.loadtxt("data/annotations/seq_hotel/H.txt"))
-        map_img = cv2.imread("data/annotations/seq_hotel/map.png", cv2.IMREAD_GRAYSCALE)
+        H = np.linalg.inv(np.loadtxt("data/annotations/seq_eth/H.txt"))
+        map_img = cv2.imread("data/annotations/seq_eth/map.png", cv2.IMREAD_GRAYSCALE)
 
         def to_pixel(trajs):
             N, T, _ = trajs.shape
             flat = trajs.reshape(-1, 2)
             pixels = world_to_pixel(flat, H, map_img.shape)  # [N*T, 2]
             return pixels.reshape(N, T, 2)
+        
+        def to_pixel_univ_zara(trajs):
+            N, T, _ = trajs.shape
+            flat = trajs.reshape(-1, 2)
+            pixels = world_to_pixel_univ_zara(flat, H, map_img.shape)  # [N*T, 2]
+            return pixels.reshape(N, T, 2)
 
-        obs_pix = to_pixel(obs_np)
-        true_pix = to_pixel(true_np)
-        pred_pix = to_pixel(pred_np)
+        obs_pix = to_pixel_univ_zara(obs_np)
+        true_pix = to_pixel_univ_zara(true_np)
+        pred_pix = to_pixel_univ_zara(pred_np)
 
         # === Print comparison ===
         print("\n📊 Future Trajectory Comparison (Predicted vs Ground Truth):")

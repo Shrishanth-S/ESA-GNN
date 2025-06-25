@@ -7,7 +7,7 @@ import numpy as np
 
 from torch_geometric.loader import DataLoader
 from model import GAT, EncoderLSTM, DecoderLSTM
-from utils import social_force_loss, map_penalty_loss, compute_ade_fde
+from utils import social_force_loss, map_penalty_loss_univ_zara, compute_ade_fde
 from dataset import PedestrianDataset
 
 from torch.utils.data import Subset
@@ -18,7 +18,7 @@ from visualize_uncertainty import visualize_uncertainty
 
 def train():
     # === Load Full Dataset ===
-    dataset_path = "data/annotations/seq_hotel/world_coordinate_inter.csv"
+    dataset_path = "data/annotations/zara01/world_coordinate_inter.csv"
     full_dataset = PedestrianDataset(dataset_path)
     video_folder = os.path.basename(os.path.dirname(full_dataset.path))
 
@@ -36,8 +36,8 @@ def train():
     print(f"🖥️ Using device: {device}")
 
     # === Map & Homography ===
-    map_image = cv2.imread("data/annotations/seq_hotel/map.png", cv2.IMREAD_GRAYSCALE)
-    H = np.linalg.inv(np.loadtxt("data/annotations/seq_hotel/H.txt"))
+    map_image = cv2.imread("data/annotations/zara01/map.png", cv2.IMREAD_GRAYSCALE)
+    H = np.linalg.inv(np.loadtxt("data/annotations/zara01/H.txt"))
 
     # === Model Init ===
     encoder = EncoderLSTM().to(device)
@@ -51,7 +51,7 @@ def train():
     
     loss_fn = nn.MSELoss()
 
-    for epoch in range(1, 101):
+    for epoch in range(1, 76):
         encoder.train()
         gat.train()
         decoder.train()
@@ -70,7 +70,7 @@ def train():
 
             pred_loss = loss_fn(pred, target)
             reg_loss = social_force_loss(pred.view(pred.size(0), -1))
-            map_loss = map_penalty_loss(pred[:, -1, :], map_image, H)
+            map_loss = map_penalty_loss_univ_zara(pred[:, -1, :], map_image, H)
 
             if not isinstance(reg_loss, torch.Tensor):
                 reg_loss = torch.tensor(reg_loss, dtype=pred.dtype, device=pred.device)

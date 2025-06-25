@@ -6,7 +6,7 @@ from visualize_uncertainty import visualize_uncertainty
 from torch.utils.data import Subset
 
 # Load checkpoint (assuming it contains state_dicts and metadata)
-checkpoint = torch.load("saved_models/model_seq_hotel_epoch100_ade0.1073_fde0.1816.pt")
+checkpoint = torch.load("saved_models/model_seq_eth_epoch75_ade0.2213_fde0.3860.pt")
 
 # Re-create model architectures
 encoder = EncoderLSTM()
@@ -22,9 +22,9 @@ print(f"✅ Loaded model")
 
 
 # Load dataset again (same way you did during training)
-dataset = PedestrianDataset("data/annotations/seq_hotel/world_coordinate_inter.csv")
+dataset = PedestrianDataset("data/annotations/seq_eth/world_coordinate_inter.csv")
 
-predict_and_visualize(gat, encoder, decoder, dataset, sample_index=699)
+predict_and_visualize(gat, encoder, decoder, dataset, sample_index=679)
 
 # Visualize prediction + uncertainty
-visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=699, T=100)
+visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=679, T=100)
