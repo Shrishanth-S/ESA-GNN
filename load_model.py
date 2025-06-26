@@ -8,9 +8,9 @@ from torch.utils.data import Subset
 from attention_visualizer import visualize_attention_on_video
 
 # Load checkpoint (assuming it contains state_dicts and metadata)
-checkpoint = torch.load("saved_models/model_seq_hotel_epoch100_ade0.1073_fde0.1816.pt")
+checkpoint = torch.load("saved_models/model_world_coordinates_epoch100_ade0.1241_fde0.2067.pt")
 
-map_path = "data/annotations/seq_hotel/map.png"
+map_path = "manual_mask.png"
 map_image = cv2.imread(map_path, cv2.IMREAD_GRAYSCALE)
 
 # map_shape is just the image shape
@@ -30,21 +30,19 @@ print(f"✅ Loaded model")
 
 
 # Load dataset again (same way you did during training)
-dataset = PedestrianDataset("data/annotations/seq_hotel/world_coordinate_inter.csv")
+dataset = PedestrianDataset("pedestrian_detector/world_coordinates/world_coordinates.csv")
 
-predict_and_visualize(gat, encoder, decoder, dataset, sample_index=459)
+predict_and_visualize(gat, encoder, decoder, dataset, sample_index=239)
 
 # Visualize prediction + uncertainty
-visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=459, T=100)
+visualize_uncertainty(gat, encoder, decoder, dataset, sample_index=239, T=100)
 
 
 visualize_attention_on_video(
     gat=gat,
     encoder=encoder,
     dataset=dataset,
-    sample_index=459,  # 🔁 Change to your desired pedestrian sample
-    video_path="data/videos/seq_hotel.avi",
-    homography_path="data/annotations/seq_hotel/H.txt",
-    map_shape=map_shape
+    sample_index=239,  # 🔁 Change to your desired pedestrian sample
+    video_path="pedestrian_detector/Canteen_Dense.mp4",
 )
 

@@ -7,25 +7,27 @@ import numpy as np
 
 from torch_geometric.loader import DataLoader
 from model import GAT, EncoderLSTM, DecoderLSTM
-from utils import social_force_loss, map_penalty_loss_univ_zara, compute_ade_fde
+from utils import social_force_loss, compute_ade_fde, map_penalty_loss_via_gps
 from dataset import PedestrianDataset
 
-from torch.utils.data import Subset
-from torch.utils.data import random_split
+from torch.utils.data import Subset, random_split
 from visualize_prediction import predict_and_visualize
 from visualize_uncertainty import visualize_uncertainty
 
 
 def train():
-    # === Load Full Dataset ===
-    dataset_path = "data/annotations/zara01/world_coordinate_inter.csv"
+    
+    dataset_path = "D:/ESA-GNN/pedestrian_detector/world_coordinates/world_coordinates.csv"
     full_dataset = PedestrianDataset(dataset_path)
+
+    subset_size = min(8000, len(full_dataset))
+    dataset = Subset(full_dataset, range(subset_size))
     video_folder = os.path.basename(os.path.dirname(full_dataset.path))
 
     # === Split Train/Test (80/20) ===
-    train_size = int(0.8 * len(full_dataset))
-    test_size = len(full_dataset) - train_size
-    train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
+    train_size = int(0.8 * subset_size)
+    test_size = subset_size - train_size
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     print(f"📊 Dataset split: {train_size} train, {test_size} test")
 
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
@@ -33,12 +35,10 @@ def train():
 
     # === Device ===
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"🖥️ Using device: {device}")
+    print(f"🖥 Using device: {device}")
 
-    # === Map & Homography ===
-    map_image = cv2.imread("data/annotations/zara01/map.png", cv2.IMREAD_GRAYSCALE)
-    H = np.linalg.inv(np.loadtxt("data/annotations/zara01/H.txt"))
-
+    map_image = cv2.imread("manual_mask.png", cv2.IMREAD_GRAYSCALE)
+    
     # === Model Init ===
     encoder = EncoderLSTM().to(device)
     gat = GAT(in_channels=34).to(device)
@@ -48,10 +48,10 @@ def train():
         list(encoder.parameters()) + list(gat.parameters()) + list(decoder.parameters()),
         lr=0.001
     )
-    
+
     loss_fn = nn.MSELoss()
 
-    for epoch in range(1, 76):
+    for epoch in range(1, 101):
         encoder.train()
         gat.train()
         decoder.train()
@@ -70,7 +70,7 @@ def train():
 
             pred_loss = loss_fn(pred, target)
             reg_loss = social_force_loss(pred.view(pred.size(0), -1))
-            map_loss = map_penalty_loss_univ_zara(pred[:, -1, :], map_image, H)
+            map_loss = map_penalty_loss_via_gps(pred[:, -1, :], map_image)
 
             if not isinstance(reg_loss, torch.Tensor):
                 reg_loss = torch.tensor(reg_loss, dtype=pred.dtype, device=pred.device)
@@ -112,19 +112,18 @@ def train():
               f"Reg: {total_reg_loss:.2f} | Map: {total_map_loss:.2f} | "
               f"ADE: {ade:.4f} | FDE: {fde:.4f}")
 
-        # === Save Best Model ===
+    # === Save Model ===
     os.makedirs("saved_models", exist_ok=True)
     save_path = f"saved_models/model_{video_folder}_epoch{epoch}_ade{ade:.4f}_fde{fde:.4f}.pt"
     torch.save({
-            "epoch": epoch,
-            "ade": ade,
-            "fde": fde,
-            "encoder_state_dict": encoder.state_dict(),
-            "gat_state_dict": gat.state_dict(),
-            "decoder_state_dict": decoder.state_dict(),
-        }, save_path)
+        "epoch": epoch,
+        "ade": ade,
+        "fde": fde,
+        "encoder_state_dict": encoder.state_dict(),
+        "gat_state_dict": gat.state_dict(),
+        "decoder_state_dict": decoder.state_dict(),
+    }, save_path)
 
-    # === Final Visualization on Test ===
+    # === Final Visualization ===
     predict_and_visualize(gat, encoder, decoder, test_dataset, sample_index=0)
     visualize_uncertainty(gat, encoder, decoder, test_dataset, sample_index=0)
-

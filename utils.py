@@ -2,6 +2,7 @@ from scipy.spatial.distance import cdist
 import numpy as np
 import torch
 import cv2
+import math
 
 def build_graph(positions, threshold=2.0):
     """
@@ -19,20 +20,26 @@ def build_graph(positions, threshold=2.0):
 
 def social_force_loss(positions, min_dist=0.5):
     """
-    Penalizes pedestrians getting too close to each other.
+    Penalizes pedestrians getting too close to each other using vectorized computation.
+    positions: Tensor of shape [N, 2]
     """
     N = positions.size(0)
     if N < 2:
         return torch.tensor(0.0, dtype=positions.dtype, device=positions.device)
 
-    loss = 0.0
-    for i in range(N):
-        for j in range(i + 1, N):
-            dist = torch.norm(positions[i] - positions[j])
-            if dist < min_dist:
-                loss += (min_dist - dist) ** 2
+    # Compute pairwise distances
+    diff = positions.unsqueeze(1) - positions.unsqueeze(0)  # [N, N, 2]
+    dist = torch.norm(diff, dim=2)  # [N, N]
 
-    return loss / N
+    # Mask out self-distances safely
+    mask = torch.eye(N, device=positions.device).bool()
+    dist = dist.masked_fill(mask, float('inf'))  # ✅ No in-place
+
+    # Penalize distances below threshold
+    close_mask = (dist < min_dist)
+    penalty = ((min_dist - dist[close_mask]) ** 2).sum()
+
+    return penalty / N
 
 
 def world_to_pixel(world_coords, H, map_shape):
@@ -140,6 +147,92 @@ def compute_ade_fde(pred, target):
     ade = torch.norm(pred - target, dim=2).mean().item()
     fde = torch.norm(pred[:, -1, :] - target[:, -1, :], dim=1).mean().item()
     return ade, fde
+
+# === Earth / Drone Parameters ===
+DRONE_LAT = 13.009162
+DRONE_LON = 74.795902
+ALTITUDE = 10  # meters
+FOV_DEG = 84
+IMAGE_WIDTH = 1280
+IMAGE_HEIGHT = 720
+
+def world_to_gps(x, y):
+    """
+    Convert (x, y) world in meters to (lat, lon) using WGS84 ellipsoid.
+    """
+    R = 6378137  # Earth's radius in meters
+    lat1_rad = math.radians(DRONE_LAT)
+
+    dlat = y / R
+    dlon = x / (R * math.cos(lat1_rad))
+
+    lat = DRONE_LAT + math.degrees(dlat)
+    lon = DRONE_LON + math.degrees(dlon)
+    return lat, lon
+
+def gps_to_pixel(lat, lon):
+    """
+    Convert GPS coordinates to pixel coordinates in drone camera view.
+    """
+    a = 6378137.0
+    f = 1 / 298.257223563
+    lat_rad = math.radians(DRONE_LAT)
+    sin_lat = math.sin(lat_rad)
+    cos_lat = math.cos(lat_rad)
+    N = a / math.sqrt(1 - f * (2 - f) * sin_lat**2)
+
+    dlat = math.radians(lat - DRONE_LAT)
+    dlon = math.radians(lon - DRONE_LON)
+
+    dy = -dlat * a
+    dx = dlon * N * cos_lat
+
+    # Convert to pixel coordinates
+    aspect_ratio = IMAGE_WIDTH / IMAGE_HEIGHT
+    fov_h_rad = math.radians(FOV_DEG)
+    fov_v_rad = math.atan(math.tan(fov_h_rad / 2) / aspect_ratio) * 2
+
+    x_angle = math.atan(dx / ALTITUDE)
+    y_angle = math.atan(dy / ALTITUDE)
+
+    u = IMAGE_WIDTH / 2 + (x_angle / (fov_h_rad / 2)) * (IMAGE_WIDTH / 2)
+    v = IMAGE_HEIGHT / 2 + (y_angle / (fov_v_rad / 2)) * (IMAGE_HEIGHT / 2)
+
+    return int(u), int(v)
+
+def world_to_pixel_via_gps(world_coords):
+    """
+    Convert [N, 2] world coords (meters) → GPS → pixel coords.
+    Returns [N, 2] pixel coords
+    """
+    result = []
+    for x, y in world_coords:
+        lat, lon = world_to_gps(x, y)
+        u, v = gps_to_pixel(lat, lon)
+        result.append([u, v])
+    return np.array(result)
+
+def map_penalty_loss_via_gps(predicted_positions, map_image, penalty_value=5.0, dilation_radius=3):
+    """
+    Penalty using GPS → pixel mapping, without homography.
+    """
+    device = predicted_positions.device
+    pred_np = predicted_positions.detach().cpu().numpy()  # [N, 2]
+    pixel_coords = world_to_pixel_via_gps(pred_np)
+
+    pixel_coords[:, 0] = np.clip(pixel_coords[:, 0], 0, map_image.shape[1] - 1)
+    pixel_coords[:, 1] = np.clip(pixel_coords[:, 1], 0, map_image.shape[0] - 1)
+
+    kernel = np.ones((2 * dilation_radius + 1, 2 * dilation_radius + 1), np.uint8)
+    dilated_map = cv2.dilate((map_image > 127).astype(np.uint8), kernel)
+
+    penalty = 0.0
+    for x, y in pixel_coords:
+        if dilated_map[y, x]:
+            penalty += penalty_value
+
+    return torch.tensor(penalty, dtype=torch.float32, device=device) / predicted_positions.size(0)
+
 
 
 

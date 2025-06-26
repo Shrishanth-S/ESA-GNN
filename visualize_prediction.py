@@ -1,13 +1,68 @@
 import torch
 import matplotlib.pyplot as plt
-import cv2
-import numpy as np
 import time
-from utils import build_graph, world_to_pixel,world_to_pixel_univ_zara
-from pathlib import Path
+import numpy as np
+import cv2
+import math
 
-def predict_and_visualize(gat, encoder, decoder, dataset, sample_index):
-    device = next(gat.parameters()).device  # Automatically get model's device
+# === DRONE CAMERA PARAMETERS ===
+DRONE_LAT = 13.009162
+DRONE_LON = 74.795902
+ALTITUDE = 10  # meters
+FOV_DEG = 84
+IMAGE_WIDTH = 1280
+IMAGE_HEIGHT = 720
+
+# === UTILS ===
+def gps_to_pixel(lat, lon):
+    """
+    Convert GPS coordinates back to pixel coordinates using camera geometry.
+    """
+    # Earth model
+    a = 6378137.0
+    f = 1 / 298.257223563
+    lat_rad = math.radians(DRONE_LAT)
+    sin_lat = math.sin(lat_rad)
+    cos_lat = math.cos(lat_rad)
+
+    N = a / math.sqrt(1 - f * (2 - f) * sin_lat**2)
+
+    # Delta in radians
+    dlat = math.radians(lat - DRONE_LAT)
+    dlon = math.radians(lon - DRONE_LON)
+
+    dy = -dlat * a  # north-south offset in meters
+    dx = dlon * N * cos_lat  # east-west offset in meters
+
+    # Convert to pixel offsets
+    aspect_ratio = IMAGE_WIDTH / IMAGE_HEIGHT
+    fov_h_rad = math.radians(FOV_DEG)
+    fov_v_rad = math.atan(math.tan(fov_h_rad / 2) / aspect_ratio) * 2
+
+    x_angle = math.atan(dx / ALTITUDE)
+    y_angle = math.atan(dy / ALTITUDE)
+
+    x_pixel = IMAGE_WIDTH / 2 + (x_angle / (fov_h_rad / 2)) * (IMAGE_WIDTH / 2)
+    y_pixel = IMAGE_HEIGHT / 2 + (y_angle / (fov_v_rad / 2)) * (IMAGE_HEIGHT / 2)
+
+    return int(x_pixel), int(y_pixel)
+
+def meters_to_gps(x_meter, y_meter):
+    """
+    Convert world coordinates in meters back to GPS.
+    """
+    R = 6378137
+    lat1_rad = math.radians(DRONE_LAT)
+    dlat = y_meter / R
+    dlon = x_meter / (R * math.cos(lat1_rad))
+
+    lat = DRONE_LAT + math.degrees(dlat)
+    lon = DRONE_LON + math.degrees(dlon)
+    return lat, lon
+
+# === MAIN FUNCTION ===
+def predict_and_visualize(gat, encoder, decoder, dataset, sample_index, map_path="manual_mask.png"):
+    device = next(gat.parameters()).device
     gat.eval()
     encoder.eval()
     decoder.eval()
@@ -15,71 +70,61 @@ def predict_and_visualize(gat, encoder, decoder, dataset, sample_index):
     with torch.no_grad():
         data = dataset[sample_index]
 
-        # 🚀 Move tensors to device
-        obs = data.obs_seq.to(device)       # [N, obs_len, 2]
-        true_fut = data.y.to(device)        # [N, 12, 2]
-        last_pos = obs[:, -1, :]            # [N, 2]
+        obs = data.obs_seq.to(device)       # [N, obs_len, 2]  ← world meters
+        true_fut = data.y.to(device)        # [N, pred_len, 2]
+        last_pos = obs[:, -1, :]
         edge_index = data.edge_index.to(device)
 
-        # === Measure inference time ===
+        # === Inference
         start_time = time.time()
-
         encoded = encoder(obs)
         node_input = torch.cat([last_pos, encoded], dim=1)
         context = gat(node_input, edge_index)
-        pred = decoder(context, last_pos)  # [N, 12, 2]
-
+        pred = decoder(context, last_pos)
         end_time = time.time()
-        elapsed_ms = (end_time - start_time) * 1000
-        print(f"\n⏱️ Inference Time: {elapsed_ms:.2f} ms")
+        print(f"\n⏱ Inference Time: {(end_time - start_time) * 1000:.2f} ms")
 
-        # === Move back to CPU for visualization
+        # Convert to numpy
         obs_np = obs.cpu().numpy()
         true_np = true_fut.cpu().numpy()
         pred_np = pred.cpu().numpy()
 
-        # === Load map + homography ===
-        H = np.linalg.inv(np.loadtxt("data/annotations/seq_hotel/H.txt"))
-        map_img = cv2.imread("data/annotations/seq_hotel/map.png", cv2.IMREAD_GRAYSCALE)
+        # === Load map
+        map_img = cv2.imread(map_path)
+        if map_img is None:
+            raise FileNotFoundError(f"❌ Map image not found at {map_path}")
+        map_img = cv2.resize(map_img, (IMAGE_WIDTH, IMAGE_HEIGHT))
 
-        def to_pixel(trajs):
-            N, T, _ = trajs.shape
-            flat = trajs.reshape(-1, 2)
-            pixels = world_to_pixel(flat, H, map_img.shape)  # [N*T, 2]
-            return pixels.reshape(N, T, 2)
-        
-        def to_pixel_univ_zara(trajs):
-            N, T, _ = trajs.shape
-            flat = trajs.reshape(-1, 2)
-            pixels = world_to_pixel_univ_zara(flat, H, map_img.shape)  # [N*T, 2]
-            return pixels.reshape(N, T, 2)
+        # === Project each point to pixel
+        def world_to_pixel_coords(coords):  # coords: [N, T, 2]
+            pixels = []
+            for traj in coords:
+                traj_pix = []
+                for x_meter, y_meter in traj:
+                    lat, lon = meters_to_gps(x_meter, y_meter)
+                    u, v = gps_to_pixel(lat, lon)
+                    traj_pix.append((u, v))
+                pixels.append(traj_pix)
+            return np.array(pixels)
 
-        obs_pix = to_pixel(obs_np)
-        true_pix = to_pixel(true_np)
-        pred_pix = to_pixel(pred_np)
+        obs_pix = world_to_pixel_coords(obs_np)
+        true_pix = world_to_pixel_coords(true_np)
+        pred_pix = world_to_pixel_coords(pred_np)
 
-        # === Print comparison ===
-        print("\n📊 Future Trajectory Comparison (Predicted vs Ground Truth):")
-        for i in range(pred_np.shape[0]):
-            print(f"\n👤 Pedestrian {i}:")
-            for t in range(12):
-                px, py = pred_np[i, t]
-                tx, ty = true_np[i, t]
-                print(f"  t+{t+1}: Pred: (x={px:.2f}, y={py:.2f})  |  True: (x={tx:.2f}, y={ty:.2f})")
-
-        # === Plot on map ===
-        plt.figure(figsize=(10, 8))
-        plt.imshow(map_img, cmap='gray')
-
+        # === Overlay on map
+        overlay = map_img.copy()
         for i in range(obs_pix.shape[0]):
-            plt.plot(obs_pix[i, :, 0], obs_pix[i, :, 1], 'bo-', label='Observed' if i == 0 else "")
-            plt.plot(true_pix[i, :, 0], true_pix[i, :, 1], 'go--', label='True Future' if i == 0 else "")
-            plt.plot(pred_pix[i, :, 0], pred_pix[i, :, 1], 'y.-', label='Predicted Future' if i == 0 else "")
+            for (u, v) in obs_pix[i]:
+                cv2.circle(overlay, (u, v), 4, (255, 0, 0), -1)  # 🔵 Observed
+            for (u, v) in true_pix[i]:
+                cv2.circle(overlay, (u, v), 4, (0, 255, 0), -1)  # 🟢 True
+            for (u, v) in pred_pix[i]:
+                cv2.circle(overlay, (u, v), 4, (0, 255, 255), -1)  # 🟡 Predicted
 
-        plt.title("Trajectory Prediction on Map (Pixel Coordinates)")
-        plt.axis('equal')
-        plt.legend(loc="upper right")
+        # === Display
+        plt.figure(figsize=(12, 8))
+        plt.imshow(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB))
+        plt.title("Trajectory Prediction on Map")
+        plt.axis("off")
         plt.tight_layout()
-        plt.grid(True)
         plt.show()
-        plt.close()

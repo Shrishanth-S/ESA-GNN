@@ -19,14 +19,12 @@ class PedestrianDataset(Dataset):
 
         self.lstm_encoder = EncoderLSTM(input_size=2, hidden_size=hidden_size)
 
-        # Load from cache if available
         if os.path.exists(self.cache_file):
             print(f"✅ Loaded cached dataset from {self.cache_file}")
             self.samples = torch.load(self.cache_file, weights_only=False)
         else:
             print(f"📥 Processing dataset from: {path}")
-            df = pd.read_csv(path, header=None).transpose()
-            df.columns = ['frame', 'ped_id', 'y', 'x']
+            df = pd.read_csv(path)  # headers: frame, ped_id, y_pixel, x_pixel
             df = df.sort_values(['frame', 'ped_id'])
             self.df = df
             self.frames = sorted(df['frame'].unique())
@@ -57,29 +55,26 @@ class PedestrianDataset(Dataset):
             fut_trajs = []
 
             for ped_id in valid_agents:
-                obs_traj = obs_data[obs_data['ped_id'] == ped_id][['x', 'y']].values
-                fut_traj = fut_data[fut_data['ped_id'] == ped_id][['x', 'y']].values
+                obs_traj = obs_data[obs_data['ped_id'] == ped_id][['x_meter', 'y_meter']].values
+                fut_traj = fut_data[fut_data['ped_id'] == ped_id][['x_meter', 'y_meter']].values
                 obs_trajs.append(obs_traj)
                 fut_trajs.append(fut_traj)
 
             obs_trajs = torch.tensor(np.array(obs_trajs), dtype=torch.float32)  # [N, obs_len, 2]
             fut_trajs = torch.tensor(np.array(fut_trajs), dtype=torch.float32)  # [N, pred_len, 2]
-            target = fut_trajs  # Full future trajectory as label
+            target = fut_trajs
 
-            # Encode with LSTM
-            _, (h_n, _) = self.lstm_encoder.lstm(obs_trajs)  # h_n: [1, N, hidden]
+            _, (h_n, _) = self.lstm_encoder.lstm(obs_trajs)  # [1, N, hidden]
             lstm_features = h_n.squeeze(0)  # [N, hidden]
 
             last_pos = obs_trajs[:, -1, :]  # [N, 2]
             node_features = torch.cat([last_pos, lstm_features], dim=1)  # [N, 34]
 
-            # Graph connectivity
             edge_index = build_graph(last_pos)  # [2, num_edges]
 
-            # Create PyG Data object
             data = Data(x=node_features, edge_index=edge_index, y=target)
-            data.obs_seq = obs_trajs 
-            data.frame_id = obs_frames[-1]
+            data.obs_seq = obs_trajs
+            data.frame_id = obs_frames[-1]  # last frame in observation
             samples.append(data)
 
         return samples
