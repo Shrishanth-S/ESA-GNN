@@ -22,4 +22,17 @@ The train.py(for custom dataset) and train_ETH_UCY.py script handles training, e
 extract_frame.py was used to get manual binary maps by drawing on the extracted frame.
 
 
+utils.py
+It contains essential utility functions for the ESA-GNN framework, supporting graph creation, coordinate transformation, spatial regularization, and evaluation. It includes build_graph to form interaction graphs based on pedestrian proximity and social_force_loss to discourage unrealistic closeness between agents. Several functions convert world coordinates to pixel space using homography or GPS metadata, depending on whether the dataset is ETH/UCY or NITK drone-based. Map-based loss functions like map_penalty_loss ensure predictions avoid non-walkable areas by referencing semantic maps. The module also includes compute_ade_fde for trajectory accuracy evaluation, helping the model generate socially and spatially aware predictions.
+
+calibration_metrics.py
+It implements calibration evaluation for uncertainty-aware trajectory predictions. The core function, evaluate_calibration, measures how well the predicted uncertainty matches the actual errors by computing empirical coverage at multiple confidence thresholds (e.g., 0.5σ, 1.0σ). It checks whether the ground-truth positions fall within predicted confidence intervals and outputs the percentage of points correctly captured at each level. This helps assess whether the model’s predicted standard deviations are reliable and meaningful for safety-critical applications like autonomous navigation.
+
+visualize_uncertainty.py
+This module visualizes uncertainty-aware trajectory predictions using Monte Carlo Dropout sampling. It runs multiple stochastic forward passes to generate a distribution of predicted future trajectories for pedestrians. The script plots observed, ground truth, mean predicted paths, and multiple sampled trajectories to show uncertainty spread. It also computes standard deviations of predictions and evaluates uncertainty calibration using metrics such as Expected Calibration Error (ECE), Maximum Calibration Error (MCE), and Brier Score. Additionally, it provides numerical and visual outputs (like reliability diagrams) to assess how well predicted confidence intervals align with actual future positions.
+
+
+
+
+
 
