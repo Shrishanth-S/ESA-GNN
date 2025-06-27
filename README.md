@@ -39,7 +39,7 @@ This module visualizes uncertainty-aware trajectory predictions using Monte Carl
 The attention_visualizer.py (attention_visualizer_ETH_UCY.py for ETH/UCY dataset) script visualizes the attention weights learned by the Graph Attention Network (GAT) during pedestrian trajectory prediction by overlaying them on a corresponding video frame. It loads a specific data sample from the dataset, performs a forward pass through the encoder and GAT to extract attention weights between pedestrian nodes, converts the pedestrians' world coordinates to pixel coordinates using a homography matrix, and draws a directed graph where edge colors represent attention strengths. This annotated graph is overlaid on the actual video frame corresponding to the sample, enabling intuitive understanding of inter-pedestrian influence modeled by the GAT.
 
 
-
+NOTE: The annotations for custom NITK dataset is found in pedestrian_detector folder and annotations for ETH/UCY is found in data folder.
 
 
 
