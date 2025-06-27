@@ -18,3 +18,8 @@ The PedestrianDataset class is a custom PyTorch dataset designed to preprocess p
 
 The train.py(for custom dataset) and train_ETH_UCY.py script handles training, evaluation, and saving of a pedestrian trajectory prediction model using a graph-based neural network architecture. It loads a dataset of pedestrian trajectories, splits it into training and testing sets, and constructs a model consisting of an LSTM encoder, Graph Attention Network (GAT), and LSTM decoder. During training, the model minimizes a composite loss that includes trajectory prediction error, social interaction regularization using a social force loss, and spatial constraint penalties using a map-based loss via homography(for ETH/UCY) and via gps(for custom datsaset). The script also computes ADE/FDE metrics for evaluation, saves model checkpoints, and provides trajectory visualizations and uncertainty estimates after training.
 
+
+extract_frame.py was used to get manual binary maps by drawing on the extracted frame.
+
+
+
